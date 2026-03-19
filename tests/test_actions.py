@@ -71,10 +71,10 @@ async def test_check_fee_approved_no():
     executor.collected["fee_approved"] = "no"
     session = make_mock_session()
     result = await check_fee_approved(executor, session)
-    assert result == "[call_ended]"
+    assert "[call_ended]" in result
+    assert "Test Co" in result
     assert executor.outcome == "declined"
-    session.say.assert_called_once()
-    assert "Test Co" in session.say.call_args[0][0]
+    session.say.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -96,10 +96,10 @@ async def test_check_service_area_out_of_area():
     executor.collected["address"] = "123 Main St Houston 77001"
     session = make_mock_session()
     result = await check_service_area(executor, session)
-    assert result == "[call_ended]"
+    assert "[call_ended]" in result
+    assert "Test Co" in result
     assert executor.outcome == "out_of_area"
-    session.say.assert_called_once()
-    assert "Test Co" in session.say.call_args[0][0]
+    session.say.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -108,9 +108,10 @@ async def test_confirm_booking_resolves_template():
     executor.collected = {"appointment_time": "tomorrow 9am", "name": "Eric"}
     session = make_mock_session()
     result = await confirm_booking(executor, session)
-    assert result == "[call_ended]"
+    assert "[call_ended]" in result
+    assert "All set for tomorrow 9am, Eric!" in result
     assert executor.outcome == "booked"
-    session.say.assert_called_once_with("All set for tomorrow 9am, Eric!")
+    session.say.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -119,6 +120,7 @@ async def test_take_message_resolves_template():
     executor.collected = {"name": "Eric"}
     session = make_mock_session()
     result = await take_message(executor, session)
-    assert result == "[call_ended]"
+    assert "[call_ended]" in result
+    assert "Message taken for Eric. Goodbye." in result
     assert executor.outcome == "message_taken"
-    session.say.assert_called_once_with("Message taken for Eric. Goodbye.")
+    session.say.assert_not_called()

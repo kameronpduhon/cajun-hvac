@@ -85,19 +85,12 @@ class StepExecutor:
         return f"Unknown step type: {step['type']}"
 
     async def _deliver_speak(self, step: dict, session) -> str:
-        if step["mode"] == "verbatim":
-            await session.say(step["text"])
-            next_step = self.peek_next_step()
-            if next_step and next_step["type"] == "collect":
-                self.current_step_index += 1
-                return next_step["prompt"]
-            return "[delivered]"
-        else:  # guided
-            next_step = self.peek_next_step()
-            if next_step and next_step["type"] == "collect":
-                self.current_step_index += 1
-                return f"{step['prompt']} Then, {next_step['prompt']}"
-            return step["prompt"]
+        text = step["text"] if step["mode"] == "verbatim" else step["prompt"]
+        next_step = self.peek_next_step()
+        if next_step and next_step["type"] == "collect":
+            self.current_step_index += 1
+            return f"Say EXACTLY: \"{text}\" Then, {next_step['prompt']}"
+        return f"Say EXACTLY: \"{text}\""
 
     async def _execute_action(self, step: dict, session) -> str:
         fn_name = step["fn"]

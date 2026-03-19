@@ -53,7 +53,7 @@ class Assistant(Agent):
             intent: The caller's intent (e.g. "routine_service")
         """
         result = await self.executor.set_intent(intent, self.session)
-        if result == "[call_ended]":
+        if "[call_ended]" in result:
             await context.wait_for_playout()
             self.session.shutdown()
         return result
@@ -71,7 +71,7 @@ class Assistant(Agent):
             value: The caller's actual response. NEVER use placeholders.
         """
         result = await self.executor.update_field(field_name, value, self.session)
-        if result == "[call_ended]":
+        if "[call_ended]" in result:
             await context.wait_for_playout()
             self.session.shutdown()
         return result
