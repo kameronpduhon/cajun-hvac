@@ -21,7 +21,7 @@
   },
   "scripts": {
     "greeting": "Thank you for calling Cajun HVAC, how can I help you today?",
-    "closing_booked": "You're all set! A technician will be there at {appointment_time}. Is there anything else I can help with?",
+    "closing_booked": "You're all set! A technician will be there at {appointment_time}. Thank you for calling Cajun HVAC. Have a great day!",
     "closing_message": "I've taken your message and someone will get back to you shortly. Have a great day!"
   },
   "intents": {

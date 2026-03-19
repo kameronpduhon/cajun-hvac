@@ -256,8 +256,9 @@ async def test_verbatim_speak_with_collect_lookahead():
     executor = StepExecutor(PLAYBOOK_WITH_SPEAK)
     session = make_mock_session()
     result = await executor.set_intent("test_intent", session)
-    session.say.assert_called_once_with("Fee is $89.")
-    assert result == "Confirm fee."
+    session.say.assert_not_called()
+    assert 'Say EXACTLY: "Fee is $89."' in result
+    assert "Confirm fee." in result
     assert executor.current_step_index == 1
 
 
@@ -276,13 +277,13 @@ async def test_guided_speak_with_collect_lookahead():
 
 
 @pytest.mark.asyncio
-async def test_verbatim_speak_no_lookahead_returns_delivered():
-    """Verbatim speak with no following collect returns [delivered]."""
+async def test_verbatim_speak_no_lookahead():
+    """Verbatim speak with no following collect returns Say EXACTLY."""
     executor = StepExecutor(PLAYBOOK_VERBATIM_SPEAK_ALONE)
     session = make_mock_session()
     result = await executor.set_intent("test_intent", session)
-    session.say.assert_called_once_with("Goodbye.")
-    assert result == "[delivered]"
+    session.say.assert_not_called()
+    assert 'Say EXACTLY: "Goodbye."' in result
 
 
 @pytest.mark.asyncio

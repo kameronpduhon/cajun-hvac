@@ -113,7 +113,7 @@ def test_compile_produces_system_prompt():
     assert "set_intent" in prompt
     assert "update_field" in prompt
     assert "NEVER" in prompt
-    assert "[delivered]" in prompt
+    assert "Say EXACTLY" in prompt
     assert "[call_ended]" in prompt
     assert "_fallback" in prompt
 
