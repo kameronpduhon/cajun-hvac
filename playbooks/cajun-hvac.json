@@ -1,0 +1,53 @@
+{
+  "company": {
+    "name": "Cajun HVAC",
+    "phone": "(337) 270-7004",
+    "address": "Lafayette, LA",
+    "timezone": "America/Chicago"
+  },
+  "hours": {
+    "office": { "start": "08:00", "end": "17:00", "days": ["mon","tue","wed","thu","fri"] },
+    "on_call": { "start": "17:00", "end": "22:00" }
+  },
+  "service_areas": ["70502", "70503", "70506", "70507", "70508"],
+  "fees": {
+    "service_call": {
+      "amount": 89,
+      "waived_with_work": true
+    }
+  },
+  "contacts": {
+    "oncall_tech": { "name": "Mike", "phone": "(337) 555-0199" }
+  },
+  "scripts": {
+    "greeting": "Thank you for calling Cajun HVAC, how can I help you today?",
+    "closing_booked": "You're all set! A technician will be there at {appointment_time}. Is there anything else I can help with?",
+    "closing_message": "I've taken your message and someone will get back to you shortly. Have a great day!"
+  },
+  "intents": {
+    "routine_service": {
+      "label": "Routine Service Request",
+      "steps": [
+        { "type": "speak", "mode": "verbatim", "text": "There is an $89 service call fee that is waived if you proceed with the repair. Would you like to continue?" },
+        { "type": "collect", "field": "fee_approved", "mode": "guided", "prompt": "Wait for the caller to confirm they accept the fee. Record yes or no." },
+        { "type": "action", "fn": "check_fee_approved" },
+        { "type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for the caller's full name." },
+        { "type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for a callback phone number." },
+        { "type": "collect", "field": "address", "mode": "guided", "prompt": "Ask for the full service address including zip code." },
+        { "type": "action", "fn": "check_service_area" },
+        { "type": "collect", "field": "issue_description", "mode": "guided", "prompt": "Ask what service they need or what issue they're experiencing." },
+        { "type": "collect", "field": "appointment_time", "mode": "guided", "prompt": "Ask when they'd like to schedule the service appointment." },
+        { "type": "action", "fn": "confirm_booking" }
+      ]
+    },
+    "_fallback": {
+      "label": "Take a Message",
+      "steps": [
+        { "type": "speak", "mode": "guided", "prompt": "Let the caller know you'll take a message so someone can get back to them." },
+        { "type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for the caller's name." },
+        { "type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for a callback number." },
+        { "type": "action", "fn": "take_message" }
+      ]
+    }
+  }
+}
