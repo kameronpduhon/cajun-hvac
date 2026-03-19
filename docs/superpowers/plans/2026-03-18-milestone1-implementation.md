@@ -36,6 +36,25 @@
 **Files:**
 - Create: `src/utils.py`
 - Create: `tests/test_utils.py`
+- Create: `compiler/__init__.py`
+- Modify: `pyproject.toml` (pytest path config)
+
+- [ ] **Step 0: Set up package structure and pytest path config**
+
+Create `compiler/__init__.py` (empty file). `src/__init__.py` and `tests/__init__.py` already exist from the scaffold.
+
+Add to `pyproject.toml` under `[tool.pytest.ini_options]`:
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+```
+
+The `pythonpath = ["."]` ensures pytest can resolve `from src.utils import ...` and `from compiler.compile import ...`.
+
+Run: `uv run pytest --co -q` to verify pytest can start without errors.
 
 - [ ] **Step 1: Write failing tests for `extract_zip`**
 
@@ -336,7 +355,7 @@ Expected: All 18 PASS
 - [ ] **Step 17: Commit**
 
 ```bash
-git add src/utils.py tests/test_utils.py
+git add src/utils.py tests/test_utils.py compiler/__init__.py pyproject.toml
 git commit -m "feat: add utility functions (extract_zip, resolve_template, detect_time_window, format_hours)"
 ```
 
@@ -744,12 +763,12 @@ async def test_advance_past_end_returns_call_ended():
 
 @pytest.mark.asyncio
 async def test_consecutive_actions_recurse_correctly():
-    """Spec Key Rule 7: consecutive action steps recurse through advance()."""
+    """Spec Key Rule 7: consecutive action steps recurse through advance().
+    update_field stores "yes" -> advance -> check_fee_approved (action) sees "yes" -> advance -> collect name
+    """
     executor = StepExecutor(PLAYBOOK_CONSECUTIVE_ACTIONS)
     session = make_mock_session()
     await executor.set_intent("test_intent", session)
-    executor.collected["fee_approved"] = "yes"
-    # update_field on fee_approved -> advance -> check_fee_approved (action) -> advance -> collect name
     result = await executor.update_field("fee_approved", "yes", session)
     assert result == "Ask for name."
 ```
@@ -820,7 +839,9 @@ PLAYBOOK = {
 async def test_check_fee_approved_yes():
     executor = StepExecutor(PLAYBOOK)
     executor.current_intent = "routine_service"
-    executor.current_step_index = -1  # advance() will increment to 0
+    # Set to -1 so advance() increments to 0 (the collect/name step).
+    # This simulates the action being called mid-flow.
+    executor.current_step_index = -1
     executor.collected["fee_approved"] = "yes"
     session = make_mock_session()
     result = await check_fee_approved(executor, session)
@@ -844,6 +865,7 @@ async def test_check_fee_approved_no():
 async def test_check_service_area_in_area():
     executor = StepExecutor(PLAYBOOK)
     executor.current_intent = "routine_service"
+    # Set to -1 so advance() increments to 0 (the collect/name step)
     executor.current_step_index = -1
     executor.collected["address"] = "456 Cypress St Lafayette 70502"
     session = make_mock_session()
@@ -1563,14 +1585,13 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    # Transcript capture
-    @session.on("user_speech_committed")
-    def on_user_speech(ev):
-        agent.executor.transcript += f"Caller: {ev.transcript}\n"
-
-    @session.on("agent_speech_committed")
-    def on_agent_speech(ev):
-        agent.executor.transcript += f"Agent: {ev.transcript}\n"
+    # Transcript capture — conversation_item_added fires for both user and agent messages
+    @session.on("conversation_item_added")
+    def on_conversation_item(ev):
+        text = ev.item.text_content
+        if text:
+            role = "Caller" if ev.item.role == "user" else "Agent"
+            agent.executor.transcript += f"{role}: {text}\n"
 
     await ctx.connect()
 

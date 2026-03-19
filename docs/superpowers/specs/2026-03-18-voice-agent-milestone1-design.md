@@ -471,16 +471,15 @@ Separation principle: `step_executor.py` has zero LiveKit SDK dependency — pur
 The agent hooks into STT events to build a running transcript. This lives in `agent.py` and writes into `executor.transcript`:
 
 ```python
-@session.on("user_speech_committed")
-def on_user_speech(ev):
-    agent.executor.transcript += f"Caller: {ev.transcript}\n"
-
-@session.on("agent_speech_committed")
-def on_agent_speech(ev):
-    agent.executor.transcript += f"Agent: {ev.transcript}\n"
+@session.on("conversation_item_added")
+def on_conversation_item(ev):
+    text = ev.item.text_content
+    if text:
+        role = "Caller" if ev.item.role == "user" else "Agent"
+        agent.executor.transcript += f"{role}: {text}\n"
 ```
 
-These event hooks are registered after `session.start()` in the entrypoint. The transcript is a simple newline-delimited string — no formatting, no timestamps. Good enough for Milestone 1.
+The `conversation_item_added` event fires for both user and agent messages when they are committed to the chat history. Registered after `session.start()` in the entrypoint. The transcript is a simple newline-delimited string — no formatting, no timestamps. Good enough for Milestone 1.
 
 ---
 
