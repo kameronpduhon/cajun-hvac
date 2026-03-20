@@ -71,10 +71,25 @@ tests/
 7. **Running as `python src/agent.py`** requires sys.path fix for `from src.x` imports (already in agent.py and compile.py)
 8. **After modifying playbook JSON**, recompile: `uv run python compiler/compile.py playbooks/cajun-hvac.json`
 
+## Intents (10 total)
+
+- `routine_service` — full booking flow (fee → info → service area check → appointment → confirm → book)
+- `emergency` — urgent dispatch (info → confirm → dispatch on-call tech). No fee, no service area check.
+- `cancellation` — name → phone → reason → take message
+- `reschedule` — name → phone → preferred time → take message
+- `eta_request` — name → phone → take message
+- `warranty` — speak warranty intro → name → phone → issue → take message
+- `billing` — name → phone → issue → take message
+- `complaint` — name → phone → issue → take message
+- `commercial` — name → phone → issue → take message
+- `_fallback` — name → phone → take message
+
 ## Design Docs
 
-- Spec: `docs/superpowers/specs/2026-03-18-voice-agent-milestone1-design.md`
-- Plan: `docs/superpowers/plans/2026-03-18-milestone1-implementation.md`
+- Spec (Milestone 1): `docs/superpowers/specs/2026-03-18-voice-agent-milestone1-design.md`
+- Plan (Milestone 1): `docs/superpowers/plans/2026-03-18-milestone1-implementation.md`
+- Spec (Intents expansion): `docs/superpowers/specs/2026-03-19-caller-intents-expansion-design.md`
+- Plan (Intents expansion): `docs/superpowers/plans/2026-03-19-caller-intents-expansion.md`
 - Prior build reference: `DUHON_VOICE_AGENT_REFERENCE.md`
 
 ## Environment Variables (.env.local)
