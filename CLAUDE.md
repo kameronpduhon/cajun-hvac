@@ -33,9 +33,10 @@ uv run python compiler/compile.py playbooks/cajun-hvac.json  # Compile playbook
 - `StepExecutor` drives call flow via two LLM tools: `set_intent` + `update_field`
 - Playbook JSON defines steps per intent (collect/speak/action)
 - Compiler validates and builds system prompt — does NOT generate steps
-- Per-step `mode` field: `verbatim` (session.say) vs `guided` (generate_reply)
-- `[delivered]` signal = verbatim speech already spoken
-- `[call_ended]` signal = call ending, shutdown session
+- Per-step `mode` field: `verbatim` vs `guided` — both return text via tool result, LLM is single speech source
+- Tools return `"Say EXACTLY: ..."` for verbatim text, prompts for guided
+- `[call_ended]` signal in tool result = call ending, shutdown session (check with `in`, not `==`)
+- `update_field` allows overwriting previously collected fields without advancing
 
 ## Project Structure
 
@@ -62,7 +63,7 @@ tests/
 ## Key Rules
 
 1. **step_executor.py has zero LiveKit SDK dependency** — pure call flow logic, independently testable
-2. **Tools return speech** — LLM speaks what tools return, never generates its own dialogue for field collection
+2. **No session.say() in tools** — causes double-speak. Tools return "Say EXACTLY:" directives; LLM is single speech source
 3. **System prompt uses hard language** — DO NOT, NEVER (not "try to" or "please avoid")
 4. **session.shutdown() is sync** — do not await it
 5. **Field names must be explicit** in system prompt — LLM guesses wrong names without them
