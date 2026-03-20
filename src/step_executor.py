@@ -93,8 +93,8 @@ class StepExecutor:
         next_step = self.peek_next_step()
         if next_step and next_step["type"] == "collect":
             self.current_step_index += 1
-            return f"Say EXACTLY: \"{text}\" Then, {next_step['prompt']}"
-        return f"Say EXACTLY: \"{text}\""
+            return f'Say EXACTLY: "{text}" Then, {next_step["prompt"]}'
+        return f'Say EXACTLY: "{text}"'
 
     async def _execute_action(self, step: dict, session) -> str:
         fn_name = step["fn"]
