@@ -165,7 +165,12 @@ def test_compile_system_prompt_auto_generates_field_names():
         "label": "Cancellation",
         "steps": [
             {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Phone?"},
-            {"type": "collect", "field": "cancellation_reason", "mode": "guided", "prompt": "Reason?"},
+            {
+                "type": "collect",
+                "field": "cancellation_reason",
+                "mode": "guided",
+                "prompt": "Reason?",
+            },
         ],
     }
     result2 = compile_playbook(pb, "test.json")
@@ -322,7 +327,9 @@ def test_after_hours_intent_excluded_from_available_intents():
     intents_end = prompt.index("#", intents_start + 1)
     intents_section = prompt[intents_start:intents_end]
     # Only the bullet lines list intents — underscore intents must not appear there
-    bullet_lines = [line for line in intents_section.splitlines() if line.startswith("- ")]
+    bullet_lines = [
+        line for line in intents_section.splitlines() if line.startswith("- ")
+    ]
     bullet_text = "\n".join(bullet_lines)
     assert "_after_hours" not in bullet_text
     assert "_fallback" not in bullet_text  # confirm existing behavior too

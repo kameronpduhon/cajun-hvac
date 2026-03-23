@@ -142,7 +142,9 @@ async def entrypoint(ctx: JobContext):
     @ctx.room.on("participant_disconnected")
     def on_disconnect(participant):
         if participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP:
-            asyncio.create_task(post_summary(agent.executor, agent.executor.call_start_time))
+            asyncio.create_task(
+                post_summary(agent.executor, agent.executor.call_start_time)
+            )
 
 
 if __name__ == "__main__":

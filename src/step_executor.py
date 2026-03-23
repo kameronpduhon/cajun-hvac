@@ -120,7 +120,7 @@ class StepExecutor:
             next_step = self.peek_next_step()
             if next_step and next_step["type"] == "collect":
                 self.current_step_index += 1
-                return f'{prompt} Then, {next_step["prompt"]}'
+                return f"{prompt} Then, {next_step['prompt']}"
             return prompt
 
     async def _execute_action(self, step: dict, session) -> str:
