@@ -34,9 +34,11 @@ uv run python compiler/compile.py playbooks/cajun-hvac.json  # Compile playbook
 - Playbook JSON defines steps per intent (collect/speak/action)
 - Compiler validates and builds system prompt — does NOT generate steps
 - Per-step `mode` field: `verbatim` vs `guided` — both return text via tool result, LLM is single speech source
-- Tools return `"Say EXACTLY: ..."` for verbatim text, prompts for guided
+- Tools return `"Say EXACTLY: ..."` for verbatim text, raw prompts for guided (LLM paraphrases naturally)
 - `[call_ended]` signal in tool result = call ending, shutdown session (check with `in`, not `==`)
 - `update_field` allows overwriting previously collected fields without advancing
+- **Time window routing:** `set_intent()` redirects non-emergency intents to `_after_hours` when off-hours. Emergency always gets full flow. After-hours support is optional per client (compiler validates `_after_hours` intent + `after_hours_greeting` script as a pair).
+- **Field names auto-generated** by compiler from collect steps — no hardcoded list to maintain
 
 ## Project Structure
 
