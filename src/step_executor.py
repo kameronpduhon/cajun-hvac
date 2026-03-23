@@ -1,4 +1,8 @@
+import logging
+
 from src.actions import ACTION_REGISTRY
+
+logger = logging.getLogger("agent")
 
 PLACEHOLDER_PATTERNS = {
     "[name]",
@@ -21,6 +25,7 @@ class StepExecutor:
         self.outcome: str | None = None
         self.time_window: str | None = None
         self.call_start_time: float | None = None
+        self.requested_intent: str | None = None
 
     @property
     def current_steps(self) -> list[dict]:
@@ -40,6 +45,20 @@ class StepExecutor:
 
         if intent not in self.playbook["intents"]:
             intent = "_fallback"
+
+        # Off-hours routing: redirect non-emergency to _after_hours
+        if (
+            self.time_window is not None
+            and self.time_window != "office_hours"
+            and intent != "emergency"
+        ):
+            if "_after_hours" in self.playbook["intents"]:
+                self.requested_intent = intent
+                intent = "_after_hours"
+            else:
+                logger.warning(
+                    "Off-hours call but no _after_hours intent configured — running normal flow"
+                )
 
         self.current_intent = intent
         self.current_step_index = 0

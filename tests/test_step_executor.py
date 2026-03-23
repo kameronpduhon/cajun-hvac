@@ -590,3 +590,115 @@ async def test_warranty_speak_then_collect():
     assert 'Say EXACTLY: "All work has a one-year warranty."' in result
     assert "Ask for name." in result
     assert executor.current_step_index == 1  # Lookahead advanced past speak
+
+
+PLAYBOOK_WITH_AFTER_HOURS = {
+    "intents": {
+        "routine_service": {
+            "label": "Routine Service",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
+                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for phone."},
+            ],
+        },
+        "emergency": {
+            "label": "Emergency Service",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
+                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for phone."},
+                {"type": "action", "fn": "dispatch_oncall_tech"},
+            ],
+        },
+        "cancellation": {
+            "label": "Cancel Appointment",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+                {"type": "action", "fn": "take_message"},
+            ],
+        },
+        "billing": {
+            "label": "Billing Question",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+                {"type": "action", "fn": "take_message"},
+            ],
+        },
+        "_after_hours": {
+            "label": "After Hours Message",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
+                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for callback number."},
+                {"type": "action", "fn": "take_message"},
+            ],
+        },
+        "_fallback": {
+            "label": "Fallback",
+            "steps": [
+                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+            ],
+        },
+    },
+    "service_areas": [],
+    "scripts": {},
+}
+
+
+# --- time window routing ---
+
+
+@pytest.mark.asyncio
+async def test_off_hours_routine_service_routes_to_after_hours():
+    """Off-hours non-emergency intent is redirected to _after_hours."""
+    executor = StepExecutor(PLAYBOOK_WITH_AFTER_HOURS)
+    executor.time_window = "on_call"
+    session = make_mock_session()
+    result = await executor.set_intent("routine_service", session)
+    assert executor.current_intent == "_after_hours"
+    assert executor.requested_intent == "routine_service"
+    assert "Ask for name." in result
+
+
+@pytest.mark.asyncio
+async def test_off_hours_emergency_keeps_full_flow():
+    """Emergency intent is NOT redirected off-hours."""
+    executor = StepExecutor(PLAYBOOK_WITH_AFTER_HOURS)
+    executor.time_window = "after_hours"
+    session = make_mock_session()
+    await executor.set_intent("emergency", session)
+    assert executor.current_intent == "emergency"
+    assert executor.requested_intent is None
+
+
+@pytest.mark.asyncio
+async def test_off_hours_all_non_emergency_intents_reroute():
+    """All non-emergency intents reroute to _after_hours off-hours, including _fallback."""
+    non_emergency = ["routine_service", "cancellation", "billing", "_fallback"]
+    for intent_name in non_emergency:
+        executor = StepExecutor(PLAYBOOK_WITH_AFTER_HOURS)
+        executor.time_window = "on_call"
+        session = make_mock_session()
+        await executor.set_intent(intent_name, session)
+        assert executor.current_intent == "_after_hours", f"{intent_name} was not rerouted"
+        assert executor.requested_intent == intent_name
+
+
+@pytest.mark.asyncio
+async def test_office_hours_no_reroute():
+    """Office hours: intents route normally, no redirect."""
+    executor = StepExecutor(PLAYBOOK_WITH_AFTER_HOURS)
+    executor.time_window = "office_hours"
+    session = make_mock_session()
+    await executor.set_intent("routine_service", session)
+    assert executor.current_intent == "routine_service"
+    assert executor.requested_intent is None
+
+
+@pytest.mark.asyncio
+async def test_off_hours_no_after_hours_intent_runs_normal_flow():
+    """Off-hours with no _after_hours intent: runs normal flow, no crash."""
+    executor = StepExecutor(MINIMAL_PLAYBOOK)  # has no _after_hours intent
+    executor.time_window = "on_call"
+    session = make_mock_session()
+    await executor.set_intent("routine_service", session)
+    assert executor.current_intent == "routine_service"
+    assert executor.requested_intent is None
