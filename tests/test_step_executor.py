@@ -597,44 +597,89 @@ PLAYBOOK_WITH_AFTER_HOURS = {
         "routine_service": {
             "label": "Routine Service",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
-                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for phone."},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+                {
+                    "type": "collect",
+                    "field": "phone",
+                    "mode": "guided",
+                    "prompt": "Ask for phone.",
+                },
             ],
         },
         "emergency": {
             "label": "Emergency Service",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
-                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for phone."},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+                {
+                    "type": "collect",
+                    "field": "phone",
+                    "mode": "guided",
+                    "prompt": "Ask for phone.",
+                },
                 {"type": "action", "fn": "dispatch_oncall_tech"},
             ],
         },
         "cancellation": {
             "label": "Cancel Appointment",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Name?",
+                },
                 {"type": "action", "fn": "take_message"},
             ],
         },
         "billing": {
             "label": "Billing Question",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Name?",
+                },
                 {"type": "action", "fn": "take_message"},
             ],
         },
         "_after_hours": {
             "label": "After Hours Message",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
-                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for callback number."},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+                {
+                    "type": "collect",
+                    "field": "phone",
+                    "mode": "guided",
+                    "prompt": "Ask for callback number.",
+                },
                 {"type": "action", "fn": "take_message"},
             ],
         },
         "_fallback": {
             "label": "Fallback",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Name?",
+                },
             ],
         },
     },
@@ -678,7 +723,9 @@ async def test_off_hours_all_non_emergency_intents_reroute():
         executor.time_window = "on_call"
         session = make_mock_session()
         await executor.set_intent(intent_name, session)
-        assert executor.current_intent == "_after_hours", f"{intent_name} was not rerouted"
+        assert executor.current_intent == "_after_hours", (
+            f"{intent_name} was not rerouted"
+        )
         assert executor.requested_intent == intent_name
 
 

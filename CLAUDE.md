@@ -83,6 +83,7 @@ tests/
 - `complaint` — name → phone → issue → take message
 - `commercial` — name → phone → issue → take message
 - `_fallback` — name → phone → take message
+- `_after_hours` — off-hours take-a-message (name → phone → take message). Only active when time_window != office_hours.
 
 ## Design Docs
 
@@ -90,6 +91,8 @@ tests/
 - Plan (Milestone 1): `docs/superpowers/plans/2026-03-18-milestone1-implementation.md`
 - Spec (Intents expansion): `docs/superpowers/specs/2026-03-19-caller-intents-expansion-design.md`
 - Plan (Intents expansion): `docs/superpowers/plans/2026-03-19-caller-intents-expansion.md`
+- Spec (Time window routing): `docs/superpowers/specs/2026-03-23-time-window-routing-design.md`
+- Plan (Time window routing): `docs/superpowers/plans/2026-03-23-time-window-routing.md`
 - Prior build reference: `DUHON_VOICE_AGENT_REFERENCE.md`
 
 ## Environment Variables (.env.local)
