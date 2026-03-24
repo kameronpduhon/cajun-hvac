@@ -62,11 +62,7 @@ async def dispatch_oncall_tech(executor, session) -> str:
 async def check_emergency_confirmed(executor, session) -> str:
     confirmed = executor.collected.get("emergency_confirmed", "").lower()
     if confirmed in ("no", "n", "nope", "not yet", "hold on", "wait"):
-        for i, step in enumerate(executor.current_steps):
-            if step.get("field") == "emergency_confirmed":
-                executor.current_step_index = i
-                return "The caller wants to correct something. Ask what they'd like to change — their name, phone number, or address."
-        return "The caller wants to correct something. Ask what they'd like to change."
+        return await take_message(executor, session)
     return await executor.advance(session)
 
 

@@ -126,8 +126,24 @@ def build_system_prompt(playbook: dict) -> str:
         qualifiers_str = ", ".join(emergency_qualifiers)
         emergency_section = f"""
 # Emergency routing
-If the caller describes any of these situations, use set_intent("emergency"): {qualifiers_str}.
-For non-urgent service needs, use set_intent("routine_service") instead.
+Qualifying symptoms: {qualifiers_str}.
+Route to emergency ONLY when the caller describes a qualifying symptom AND expresses urgency, danger, or immediate need. If the caller mentions a symptom but wants to schedule a repair, route to routine_service.
+
+Urgency signals: "I need someone right now", "this is an emergency", "my family is in danger", "it's dangerous", "we can't stay here", "someone could get hurt", expressing fear or panic.
+
+Examples — emergency (symptom + urgency):
+- "My AC is completely out and it's a hundred degrees, I have elderly people in the house, I need someone NOW"
+- "I smell gas in the house, we need help immediately"
+- "Our pipes burst and the house is flooding, please send someone right away"
+- "We have no heat and it's below freezing, my kids are freezing"
+
+Examples — NOT emergency (symptom without urgency):
+- "My AC isn't blowing cold air, I'd like to schedule someone to come look at it"
+- "My heater stopped working, can I get someone out this week?"
+- "I have no hot water, I want to set up an appointment"
+- "My AC isn't working anymore, I was wanting to get someone down here to fix it"
+
+DO NOT pattern-match symptoms alone. A caller mentioning "no AC" or "no heat" is NOT automatically an emergency. The caller MUST express urgency or danger. When in doubt, route to routine_service.
 """
 
     return f"""You are a virtual receptionist for {company["name"]} in {company.get("address", "")}.

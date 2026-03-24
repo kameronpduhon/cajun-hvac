@@ -20,11 +20,7 @@ actions.ACTION_REGISTRY["check_fee_approved"] = _test_check_fee_approved
 async def _test_check_emergency_confirmed(executor, session):
     confirmed = executor.collected.get("emergency_confirmed", "").lower()
     if confirmed in ("no", "n", "nope", "not yet", "hold on", "wait"):
-        for i, step in enumerate(executor.current_steps):
-            if step.get("field") == "emergency_confirmed":
-                executor.current_step_index = i
-                return "The caller wants to correct something. Ask what they'd like to change."
-        return "The caller wants to correct something. Ask what they'd like to change."
+        return await _test_take_message(executor, session)
     return await executor.advance(session)
 
 
@@ -250,7 +246,7 @@ PLAYBOOK_EMERGENCY = {
         },
     },
     "service_areas": [],
-    "scripts": {"closing_dispatched": "Tech sent."},
+    "scripts": {"closing_dispatched": "Tech sent.", "closing_message": "Message taken. Goodbye."},
 }
 
 PLAYBOOK_CANCELLATION = {
@@ -534,8 +530,8 @@ async def test_emergency_full_flow():
 
 
 @pytest.mark.asyncio
-async def test_emergency_confirmed_no_allows_correction():
-    """When caller says no at confirmation, they can correct a field via overwrite."""
+async def test_emergency_confirmed_no_takes_message():
+    """When caller says no at confirmation, take a message and end the call."""
     executor = StepExecutor(PLAYBOOK_EMERGENCY)
     session = make_mock_session()
 
@@ -545,17 +541,8 @@ async def test_emergency_confirmed_no_allows_correction():
     await executor.update_field("address", "456 Cypress St 70502", session)
 
     result = await executor.update_field("emergency_confirmed", "no", session)
-    assert "change" in result.lower()
-
-    # Overwrite a previously collected field — step stays on emergency_confirmed
-    result = await executor.update_field("phone", "337-999-8888", session)
-    assert executor.collected["phone"] == "337-999-8888"
-    assert "Confirm dispatch." in result
-
-    # Re-confirm
-    result = await executor.update_field("emergency_confirmed", "yes", session)
     assert "[call_ended]" in result
-    assert executor.outcome == "dispatched"
+    assert executor.outcome == "message_taken"
 
 
 @pytest.mark.asyncio

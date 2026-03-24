@@ -143,6 +143,10 @@ def test_compile_system_prompt_includes_emergency_qualifiers():
     assert "no heat" in prompt
     assert "gas leak" in prompt
     assert "emergency" in prompt.lower()
+    # Must require urgency signals, not just symptom matching
+    assert "urgency" in prompt.lower()
+    # Must include contrastive examples (emergency vs NOT emergency)
+    assert "NOT emergency" in prompt
 
 
 def test_compile_system_prompt_without_emergency_qualifiers():
