@@ -8,8 +8,8 @@ Voice AI agent for home service companies (HVAC, plumbing, electrical). Handles 
 
 - **Agent framework:** LiveKit Agents SDK 1.4.x (Python)
 - **STT:** Deepgram Nova-3 (multilingual)
-- **LLM:** OpenAI GPT-4.1-mini
-- **TTS:** Deepgram Aura-2 (voice: "andromeda")
+- **LLM:** Google Gemini 2.5 Flash
+- **TTS:** Deepgram Aura-2 (voice: "asteria")
 - **Package manager:** uv
 - **Tests:** pytest (asyncio_mode = auto)
 - **Linter:** ruff
