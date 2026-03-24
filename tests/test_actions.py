@@ -196,10 +196,11 @@ async def test_check_emergency_confirmed_yes_advances():
 
 
 @pytest.mark.asyncio
-async def test_check_emergency_confirmed_no_asks_what_to_change():
-    """When caller says no, return guided prompt asking what to change."""
+async def test_check_emergency_confirmed_no_takes_message():
+    """When caller says no, fall through to take_message and end the call."""
     executor = StepExecutor(PLAYBOOK)
-    executor.collected = {"emergency_confirmed": "no"}
+    executor.collected = {"emergency_confirmed": "no", "name": "Eric"}
     session = make_mock_session()
     result = await check_emergency_confirmed(executor, session)
-    assert "what" in result.lower() and "change" in result.lower()
+    assert "[call_ended]" in result
+    assert executor.outcome == "message_taken"
