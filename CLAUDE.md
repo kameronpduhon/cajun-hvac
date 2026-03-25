@@ -28,30 +28,50 @@ uv run python compiler/compile.py playbooks/cajun-hvac.json  # Compile playbook
 
 ## Architecture
 
-**Option C: Modernized State Machine.** This is a deliberate choice — do not propose switching to LiveKit-native Agent/Task patterns.
+**Multi-agent with StepExecutor state machine.** Two agent classes using LiveKit's native handoff system, with StepExecutor driving per-intent call flow.
 
-- `StepExecutor` drives call flow via two LLM tools: `set_intent` + `update_field`
+### Agent classes
+- **RouterAgent** — greets caller, identifies intent via `route_to_intent` tool, checks time window, hands off to IntentAgent. Handles escalation re-entry (skips greeting, routes directly).
+- **IntentAgent** — parameterized per-intent specialist. Receives one intent's config, runs that flow with `update_field` + `escalate` tools. `on_enter()` dispatches the first step via `generate_reply(instructions=...)`.
+
+### Handoff pattern
+- RouterAgent → `route_to_intent` returns `(IntentAgent(), "message")` → LiveKit SDK handles handoff
+- IntentAgent → `escalate` returns `(RouterAgent(), "message")` → router re-enters, detects escalation via `session.userdata["escalation_requested"]`, routes directly without replaying greeting
+- `session.userdata` (dict) persists across all agent handoffs — used for transcript, collected fields, outcome, post-call summary
+
+### StepExecutor (unchanged core)
+- Drives call flow per intent — pure Python, zero LiveKit dependency
+- Constructor: `StepExecutor(playbook, intent, pre_collected=None)` — scoped to one intent at creation
+- `_skip_pre_collected_steps()` advances past collect steps for fields carried from escalation
 - Playbook JSON defines steps per intent (collect/speak/action)
-- Compiler validates and builds system prompt — does NOT generate steps
 - Per-step `mode` field: `verbatim` vs `guided` — both return text via tool result, LLM is single speech source
 - Tools return `"Say EXACTLY: ..."` for verbatim text, raw prompts for guided (LLM paraphrases naturally)
 - `[call_ended]` signal in tool result = call ending, shutdown session (check with `in`, not `==`)
 - `update_field` allows overwriting previously collected fields without advancing
-- **Time window routing:** `set_intent()` redirects non-emergency intents to `_after_hours` when off-hours. Emergency always gets full flow. After-hours support is optional per client (compiler validates `_after_hours` intent + `after_hours_greeting` script as a pair).
+
+### Compiler
+- Builds `router_prompt` (small, routing-only) + `intent_prompts` dict (one per intent, scoped fields/rules/company info)
+- Router prompt: company name, intent list, emergency routing with contrastive examples, guardrails
+- Intent prompts: scoped field names, company info relevant to that intent, conversation rules, "Say EXACTLY" handling, step ordering instructions
 - **Field names auto-generated** by compiler from collect steps — no hardcoded list to maintain
+
+### Time window routing
+- RouterAgent checks time window, redirects non-emergency intents to `_after_hours` IntentAgent
+- Emergency always gets full flow regardless of time
+- After-hours support is optional per client (compiler validates `_after_hours` intent + `after_hours_greeting` script as a pair)
 
 ## Project Structure
 
 ```
 src/
-├── agent.py           # LiveKit Agent class, entrypoint, transcript capture
+├── agent.py           # RouterAgent + IntentAgent, entrypoint, transcript capture
 ├── step_executor.py   # State machine (zero LiveKit dependency)
 ├── actions.py         # Action functions + ACTION_REGISTRY
 ├── utils.py           # extract_zip, resolve_template, detect_time_window, format_hours
 ├── playbook.py        # Load compiled playbook from disk
-└── post_call.py       # Post-call summary with retry
+└── post_call.py       # Post-call summary from session.userdata with retry
 compiler/
-└── compile.py         # Validate raw playbook → compiled JSON
+└── compile.py         # Validate raw playbook → compiled JSON (router_prompt + intent_prompts)
 playbooks/
 ├── cajun-hvac.json           # Raw playbook (client config)
 └── cajun-hvac.compiled.json  # Compiled (agent reads this)
@@ -66,17 +86,19 @@ tests/
 
 1. **step_executor.py has zero LiveKit SDK dependency** — pure call flow logic, independently testable
 2. **No session.say() in tools** — causes double-speak. Tools return "Say EXACTLY:" directives; LLM is single speech source
-3. **System prompt uses hard language** — DO NOT, NEVER (not "try to" or "please avoid")
+3. **Prompts use hard language** — DO NOT, NEVER (not "try to" or "please avoid")
 4. **session.shutdown() is sync** — do not await it
-5. **Field names must be explicit** in system prompt — LLM guesses wrong names without them
+5. **Field names must be explicit** in intent prompts — LLM guesses wrong names without them
 6. **conversation_item_added** is the correct event for transcript capture
 7. **Running as `python src/agent.py`** requires sys.path fix for `from src.x` imports (already in agent.py and compile.py)
 8. **After modifying playbook JSON**, recompile: `uv run python compiler/compile.py playbooks/cajun-hvac.json`
+9. **Transcript capture uses session.userdata** — agent instances change on handoff, session persists
+10. **Escalation re-entry** — RouterAgent checks `session.userdata["escalation_requested"]` in `on_enter()` to skip greeting and route directly
 
 ## Intents (10 + 1 routing)
 
-- `routine_service` — full booking flow (fee → info → service area check → appointment → confirm → book)
-- `emergency` — urgent dispatch (info → confirm → dispatch on-call tech). No fee, no service area check.
+- `routine_service` — full booking flow (name → phone → address → area check → appointment → issue → fee → confirm → book)
+- `emergency` — urgent dispatch (name → phone → address → confirm → dispatch on-call tech). No fee, no service area check.
 - `cancellation` — name → phone → reason → take message
 - `reschedule` — name → phone → preferred time → take message
 - `eta_request` — name → phone → take message
@@ -95,6 +117,7 @@ tests/
 - Plan (Intents expansion): `docs/superpowers/plans/2026-03-19-caller-intents-expansion.md`
 - Spec (Time window routing): `docs/superpowers/specs/2026-03-23-time-window-routing-design.md`
 - Plan (Time window routing): `docs/superpowers/plans/2026-03-23-time-window-routing.md`
+- Plan (Multi-agent): `/Users/kameronduhon/Downloads/multi-agent-implementation-plan.md`
 - Prior build reference: `DUHON_VOICE_AGENT_REFERENCE.md`
 
 ## Environment Variables (.env.local)
