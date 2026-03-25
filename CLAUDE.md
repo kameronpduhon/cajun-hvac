@@ -31,13 +31,23 @@ uv run python compiler/compile.py playbooks/cajun-hvac.json  # Compile playbook
 **Multi-agent with StepExecutor state machine.** Two agent classes using LiveKit's native handoff system, with StepExecutor driving per-intent call flow.
 
 ### Agent classes
-- **RouterAgent** — greets caller, identifies intent via `route_to_intent` tool, checks time window, hands off to IntentAgent. Handles escalation re-entry (skips greeting, routes directly).
-- **IntentAgent** — parameterized per-intent specialist. Receives one intent's config, runs that flow with `update_field` + `escalate` tools. `on_enter()` dispatches the first step via `generate_reply(instructions=...)`.
+- **RouterAgent** — greets caller, identifies intent via `route_to_intent` tool, checks time window, speaks transfer announcement (for routine_service/emergency/commercial), hands off to IntentAgent. Can answer simple info questions (hours, address, phone) directly without routing. Handles escalation re-entry (skips greeting, routes directly).
+- **IntentAgent** — parameterized per-intent specialist. Receives one intent's config, runs that flow with `update_field` + `escalate` tools. `on_enter()` speaks intent greeting via `session.say()` for greeted intents (routine_service/emergency/commercial), or dispatches the first step via `generate_reply(instructions=...)` for others.
 
 ### Handoff pattern
-- RouterAgent → `route_to_intent` returns `(IntentAgent(), "message")` → LiveKit SDK handles handoff
+- RouterAgent → `route_to_intent` speaks transfer message (if applicable) via `session.say(allow_interruptions=False)`, then returns `(IntentAgent(), "message")` → LiveKit SDK handles handoff
 - IntentAgent → `escalate` returns `(RouterAgent(), "message")` → router re-enters, detects escalation via `session.userdata["escalation_requested"]`, routes directly without replaying greeting
 - `session.userdata` (dict) persists across all agent handoffs — used for transcript, collected fields, outcome, post-call summary
+
+### Transfer announcements & intent greetings
+- **Transfer messages** (`scripts.transfer_messages`): RouterAgent speaks before handoff for routine_service, emergency, commercial. Other intents hand off silently. `session.say(allow_interruptions=False)` ensures full playout before agent switch.
+- **Intent greetings** (`scripts.intent_greetings`): IntentAgent speaks on enter for routine_service, emergency, commercial via `session.say()`. Greeting asks for name → intent prompt tells LLM "wait for response, do NOT re-ask." Step index stays at 0.
+- Transfer messages and intent greetings must appear in matching pairs (compiler validates).
+
+### Router info handling
+- RouterAgent answers simple info questions (business hours, address, phone) directly from company info in router prompt — no routing needed.
+- After answering, asks "Is there anything else I can help you with?" and routes if caller needs a service.
+- Info-only calls post summary with null intent/outcome (backend handles gracefully).
 
 ### StepExecutor (unchanged core)
 - Drives call flow per intent — pure Python, zero LiveKit dependency
@@ -50,10 +60,11 @@ uv run python compiler/compile.py playbooks/cajun-hvac.json  # Compile playbook
 - `update_field` allows overwriting previously collected fields without advancing
 
 ### Compiler
-- Builds `router_prompt` (small, routing-only) + `intent_prompts` dict (one per intent, scoped fields/rules/company info)
-- Router prompt: company name, intent list, emergency routing with contrastive examples, guardrails
-- Intent prompts: scoped field names, company info relevant to that intent, conversation rules, "Say EXACTLY" handling, step ordering instructions
+- Builds `router_prompt` (routing + info handling) + `intent_prompts` dict (one per intent, scoped fields/rules/company info)
+- Router prompt: company name/address/phone, office hours, intent list, emergency routing with contrastive examples, simple info question handling, guardrails
+- Intent prompts: scoped field names, company info relevant to that intent, conversation rules, "Say EXACTLY" handling, step ordering instructions, greeting-aware instructions for greeted intents
 - **Field names auto-generated** by compiler from collect steps — no hardcoded list to maintain
+- **Validates** transfer_messages/intent_greetings reference valid intents and appear in matching pairs
 
 ### Time window routing
 - RouterAgent checks time window, redirects non-emergency intents to `_after_hours` IntentAgent
@@ -85,7 +96,7 @@ tests/
 ## Key Rules
 
 1. **step_executor.py has zero LiveKit SDK dependency** — pure call flow logic, independently testable
-2. **No session.say() in tools** — causes double-speak. Tools return "Say EXACTLY:" directives; LLM is single speech source
+2. **No session.say() in tools** — causes double-speak. Tools return "Say EXACTLY:" directives; LLM is single speech source. Exception: `route_to_intent` uses `session.say()` for transfer messages (before handoff, not during LLM generation)
 3. **Prompts use hard language** — DO NOT, NEVER (not "try to" or "please avoid")
 4. **session.shutdown() is sync** — do not await it
 5. **Field names must be explicit** in intent prompts — LLM guesses wrong names without them
@@ -94,6 +105,8 @@ tests/
 8. **After modifying playbook JSON**, recompile: `uv run python compiler/compile.py playbooks/cajun-hvac.json`
 9. **Transcript capture uses session.userdata** — agent instances change on handoff, session persists
 10. **Escalation re-entry** — RouterAgent checks `session.userdata["escalation_requested"]` in `on_enter()` to skip greeting and route directly
+11. **Greeted intents coordinate via prompt** — `session.say()` speaks greeting, intent prompt tells LLM to wait for caller response. No StepExecutor changes needed — step index stays at 0
+12. **Transfer messages and intent greetings must be paired** — compiler validates they appear together for each intent
 
 ## Intents (10 + 1 routing)
 
@@ -117,7 +130,8 @@ tests/
 - Plan (Intents expansion): `docs/superpowers/plans/2026-03-19-caller-intents-expansion.md`
 - Spec (Time window routing): `docs/superpowers/specs/2026-03-23-time-window-routing-design.md`
 - Plan (Time window routing): `docs/superpowers/plans/2026-03-23-time-window-routing.md`
-- Plan (Multi-agent): `/Users/kameronduhon/Downloads/multi-agent-implementation-plan.md`
+- Plan (Multi-agent v1): `/Users/kameronduhon/Downloads/multi-agent-implementation-plan.md`
+- Plan (Multi-agent v2): `/Users/kameronduhon/Downloads/multi-agent-implementation-plan-v2.md`
 - Prior build reference: `DUHON_VOICE_AGENT_REFERENCE.md`
 
 ## Environment Variables (.env.local)
