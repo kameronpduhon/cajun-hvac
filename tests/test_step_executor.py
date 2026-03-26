@@ -617,6 +617,42 @@ async def test_pre_collected_none_starts_at_zero():
     assert executor.collected == {}
 
 
+PLAYBOOK_WITH_APPOINTMENT = {
+    "intents": {
+        "routine_service": {
+            "label": "Routine Service",
+            "steps": [
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+                {
+                    "type": "collect",
+                    "field": "appointment_time",
+                    "mode": "guided",
+                    "prompt": "Ask when they'd like to schedule.",
+                },
+            ],
+        },
+        "_fallback": {
+            "label": "Fallback",
+            "steps": [
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Name?",
+                },
+            ],
+        },
+    },
+    "service_areas": [],
+    "scripts": {},
+}
+
+
 PLAYBOOK_WITH_AFTER_HOURS = {
     "intents": {
         "routine_service": {
@@ -711,3 +747,62 @@ PLAYBOOK_WITH_AFTER_HOURS = {
     "service_areas": [],
     "scripts": {},
 }
+
+
+# --- incomplete appointment time tests ---
+
+
+@pytest.mark.asyncio
+async def test_appointment_time_rejects_day_only():
+    """update_field rejects 'Friday' alone for appointment_time."""
+    executor = StepExecutor(PLAYBOOK_WITH_APPOINTMENT, "routine_service")
+    session = make_mock_session()
+    await executor.update_field("name", "Eric Tails", session)
+    result = await executor.update_field("appointment_time", "Friday", session)
+    assert "appointment_time" not in executor.collected
+    assert "time" in result.lower()
+    assert "Friday" in result
+
+
+@pytest.mark.asyncio
+async def test_appointment_time_rejects_tomorrow():
+    """update_field rejects 'tomorrow' alone for appointment_time."""
+    executor = StepExecutor(PLAYBOOK_WITH_APPOINTMENT, "routine_service")
+    session = make_mock_session()
+    await executor.update_field("name", "Eric Tails", session)
+    result = await executor.update_field("appointment_time", "tomorrow", session)
+    assert "appointment_time" not in executor.collected
+    assert "time" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_appointment_time_accepts_day_and_time():
+    """update_field accepts 'Friday at 2 PM' — complete appointment time."""
+    executor = StepExecutor(PLAYBOOK_WITH_APPOINTMENT, "routine_service")
+    session = make_mock_session()
+    await executor.update_field("name", "Eric Tails", session)
+    result = await executor.update_field("appointment_time", "Friday at 2 PM", session)
+    assert executor.collected["appointment_time"] == "Friday at 2 PM"
+
+
+@pytest.mark.asyncio
+async def test_appointment_time_accepts_tomorrow_morning():
+    """update_field accepts 'tomorrow morning' — not just a bare day name."""
+    executor = StepExecutor(PLAYBOOK_WITH_APPOINTMENT, "routine_service")
+    session = make_mock_session()
+    await executor.update_field("name", "Eric Tails", session)
+    result = await executor.update_field(
+        "appointment_time", "tomorrow morning", session
+    )
+    assert executor.collected["appointment_time"] == "tomorrow morning"
+
+
+@pytest.mark.asyncio
+async def test_appointment_time_step_does_not_advance_on_reject():
+    """Rejecting incomplete appointment_time keeps step index on the same step."""
+    executor = StepExecutor(PLAYBOOK_WITH_APPOINTMENT, "routine_service")
+    session = make_mock_session()
+    await executor.update_field("name", "Eric Tails", session)
+    assert executor.current_step_index == 1  # on appointment_time
+    await executor.update_field("appointment_time", "Monday", session)
+    assert executor.current_step_index == 1  # still on appointment_time

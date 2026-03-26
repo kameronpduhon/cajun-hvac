@@ -1,8 +1,22 @@
 import logging
+import re
 
 from src.actions import ACTION_REGISTRY
 
 logger = logging.getLogger("agent")
+
+DAY_ONLY_PATTERN = re.compile(
+    r"^(monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
+    r"mon|tue|wed|thu|fri|sat|sun|"
+    r"today|tomorrow|next week)$",
+    re.IGNORECASE,
+)
+
+
+def _is_incomplete_appointment_time(value: str) -> bool:
+    """Check if appointment time is just a day without a specific time."""
+    return bool(DAY_ONLY_PATTERN.match(value.strip()))
+
 
 PLACEHOLDER_PATTERNS = {
     "[name]",
@@ -43,6 +57,11 @@ class StepExecutor:
                 break
 
     @property
+    def company_tts_name(self) -> str:
+        meta = self.playbook.get("meta", {})
+        return meta.get("tts_company_name", meta.get("company_name", "us"))
+
+    @property
     def current_steps(self) -> list[dict]:
         if self.current_intent is None:
             return []
@@ -68,6 +87,9 @@ class StepExecutor:
 
         if value.strip().lower() in PLACEHOLDER_PATTERNS:
             return f"Please provide a real value for {field_name}, not a placeholder."
+
+        if field_name == "appointment_time" and _is_incomplete_appointment_time(value):
+            return f"The caller only provided a day ({value}) but not a specific time. Ask what time on {value} works for them."
 
         self.collected[field_name] = value
         return await self.advance(session)

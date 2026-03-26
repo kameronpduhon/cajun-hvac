@@ -144,7 +144,7 @@ class RouterAgent(Agent):
             pre_collected=pre_collected,
         )
 
-        return intent_agent, f"Routing to {actual_intent} specialist."
+        return intent_agent, "[routing_complete]"
 
 
 class IntentAgent(Agent):
@@ -223,10 +223,7 @@ class IntentAgent(Agent):
             playbook=self.playbook,
             time_window=self.executor.time_window,
         )
-        return (
-            router,
-            f"The caller needs help with something else. They mentioned: {new_intent}.",
-        )
+        return router, "[escalation_complete]"
 
 
 server = AgentServer()

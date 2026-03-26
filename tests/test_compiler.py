@@ -516,3 +516,49 @@ def test_compiled_output_includes_intent_greetings_in_scripts():
     result = compile_playbook(pb, "test.json")
     assert "intent_greetings" in result["scripts"]
     assert "routine_service" in result["scripts"]["intent_greetings"]
+
+
+# --- tts_company_name ---
+
+
+def test_compile_produces_tts_company_name():
+    """Compiled meta includes tts_company_name with HVAC replaced."""
+    pb = json.loads(json.dumps(VALID_PLAYBOOK))
+    pb["company"]["name"] = "Acme HVAC"
+    result = compile_playbook(pb, "test.json")
+    assert result["meta"]["tts_company_name"] == "Acme H-vac"
+    assert result["meta"]["company_name"] == "Acme HVAC"
+
+
+def test_compile_tts_company_name_no_hvac():
+    """Company name without HVAC gets tts_company_name unchanged."""
+    result = compile_playbook(VALID_PLAYBOOK, "test.json")
+    assert result["meta"]["tts_company_name"] == "Test Co"
+
+
+def test_compile_output_rule_hvac():
+    """Output rules should instruct LLM to write H-vac, not HVAC."""
+    result = compile_playbook(VALID_PLAYBOOK, "test.json")
+    prompt = result["intent_prompts"]["routine_service"]
+    assert "H-vac" in prompt
+    assert 'all capital letters' in prompt.lower() or 'TTS will spell' in prompt
+
+
+def test_compile_router_prompt_no_speak_after_routing():
+    """Router prompt should instruct LLM not to speak after calling route_to_intent."""
+    result = compile_playbook(VALID_PLAYBOOK, "test.json")
+    prompt = result["router_prompt"]
+    assert "DO NOT speak" in prompt or "Do NOT speak" in prompt
+    assert "transferring" in prompt.lower() or "please hold" in prompt.lower()
+
+
+def test_compile_appointment_time_instruction():
+    """Intent prompts should include instruction about collecting complete appointment times."""
+    pb = json.loads(json.dumps(VALID_PLAYBOOK))
+    pb["intents"]["routine_service"]["steps"].append(
+        {"type": "collect", "field": "appointment_time", "mode": "guided", "prompt": "When?"}
+    )
+    result = compile_playbook(pb, "test.json")
+    prompt = result["intent_prompts"]["routine_service"]
+    assert "appointment time" in prompt.lower()
+    assert "day AND" in prompt or "day and" in prompt.lower()
