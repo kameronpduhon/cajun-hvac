@@ -2,7 +2,7 @@ from src.utils import extract_zip, resolve_template
 
 
 async def check_fee_approved(executor, session) -> str:
-    company = executor.playbook.get("meta", {}).get("company_name", "us")
+    company = executor.company_tts_name
     if executor.collected.get("fee_approved", "").lower() in ("no", "n", "decline"):
         executor.outcome = "declined"
         return f'Say EXACTLY: "No problem at all. Thank you for calling {company}. Have a great day." [call_ended]'
@@ -10,7 +10,7 @@ async def check_fee_approved(executor, session) -> str:
 
 
 async def check_service_area(executor, session) -> str:
-    company = executor.playbook.get("meta", {}).get("company_name", "us")
+    company = executor.company_tts_name
     address = executor.collected.get("address", "")
     zip_code = extract_zip(address)
 

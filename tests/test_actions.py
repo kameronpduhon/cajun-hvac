@@ -256,3 +256,65 @@ async def test_check_emergency_confirmed_no_takes_message():
     result = await check_emergency_confirmed(executor, session)
     assert "[call_ended]" in result
     assert executor.outcome == "message_taken"
+
+
+# --- TTS-friendly company name in closings ---
+
+PLAYBOOK_HVAC = {
+    "meta": {
+        "company_name": "Cajun HVAC",
+        "tts_company_name": "Cajun H-vac",
+        "timezone": "America/Chicago",
+    },
+    "intents": {
+        "routine_service": {
+            "label": "Routine Service",
+            "steps": [
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+            ],
+        },
+        "_fallback": {
+            "label": "Fallback",
+            "steps": [
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask name.",
+                },
+            ],
+        },
+    },
+    "service_areas": ["70502"],
+    "scripts": {
+        "closing_booked": "All set!",
+        "closing_message": "Message taken.",
+    },
+}
+
+
+@pytest.mark.asyncio
+async def test_check_fee_approved_uses_tts_company_name():
+    """Fee decline closing should use TTS-friendly company name."""
+    executor = StepExecutor(PLAYBOOK_HVAC, "routine_service")
+    executor.collected["fee_approved"] = "no"
+    session = make_mock_session()
+    result = await check_fee_approved(executor, session)
+    assert "Cajun H-vac" in result
+    assert "Cajun HVAC" not in result
+
+
+@pytest.mark.asyncio
+async def test_check_service_area_out_uses_tts_company_name():
+    """Out-of-area closing should use TTS-friendly company name."""
+    executor = StepExecutor(PLAYBOOK_HVAC, "routine_service")
+    executor.collected["address"] = "123 Main St Houston 77001"
+    session = make_mock_session()
+    result = await check_service_area(executor, session)
+    assert "Cajun H-vac" in result
+    assert "Cajun HVAC" not in result
