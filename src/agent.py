@@ -50,7 +50,7 @@ class RouterAgent(Agent):
             self.session.userdata["escalation_requested"] = None
             self.session.userdata["pre_collected"] = None
             # Route directly to the requested intent
-            self._route(escalation, pre_collected)
+            await self._route(escalation, pre_collected)
             return
 
         scripts = self.playbook["scripts"]
@@ -64,46 +64,14 @@ class RouterAgent(Agent):
             greeting = scripts["greeting"]
         await self.session.say(greeting)
 
-    def _route(self, intent: str, pre_collected: dict | None = None):
-        """Internal routing logic shared by route_to_intent tool and escalation re-entry."""
-        if intent not in self.playbook["intents"]:
-            intent = "_fallback"
-
-        # Off-hours routing: redirect non-emergency to _after_hours
-        actual_intent = intent
-        requested_intent = None
-        if (
-            self.time_window is not None
-            and self.time_window != "office_hours"
-            and intent != "emergency"
-            and "_after_hours" in self.playbook["intents"]
-        ):
-            requested_intent = intent
-            actual_intent = "_after_hours"
-
-        # Store routing info in session userdata for post-call summary
-        self.session.userdata["intent"] = actual_intent
-        self.session.userdata["requested_intent"] = requested_intent
-        self.session.userdata["time_window"] = self.time_window
-
-        # Create and hand off to the IntentAgent
-        intent_agent = IntentAgent(
-            playbook=self.playbook,
-            intent=actual_intent,
-            time_window=self.time_window,
-            requested_intent=requested_intent,
-            pre_collected=pre_collected,
-        )
-
-        self.session.update_agent(intent_agent)
-
-    @function_tool()
-    async def route_to_intent(self, context: RunContext, intent: str) -> tuple:
-        """Route the caller to the appropriate specialist. Call this once after identifying what the caller needs.
-
-        Args:
-            intent: The caller's intent (e.g. "routine_service", "emergency", "cancellation")
-        """
+    async def _resolve_intent(
+        self,
+        intent: str,
+        pre_collected: dict | None = None,
+        speak_acknowledgment: bool = False,
+    ) -> "IntentAgent":
+        """Shared routing logic: validate intent, apply off-hours redirect, update
+        userdata, optionally speak acknowledgment, and return a ready IntentAgent."""
         if intent not in self.playbook["intents"]:
             intent = "_fallback"
 
@@ -125,18 +93,16 @@ class RouterAgent(Agent):
         self.session.userdata["time_window"] = self.time_window
 
         # Speak router acknowledgment if this intent has one — must complete before handoff
-        acknowledgments = self.playbook["scripts"].get("router_acknowledgments", {})
-        if actual_intent in acknowledgments:
-            await self.session.say(
-                acknowledgments[actual_intent], allow_interruptions=False
+        if speak_acknowledgment:
+            acknowledgments = self.playbook["scripts"].get(
+                "router_acknowledgments", {}
             )
+            if actual_intent in acknowledgments:
+                await self.session.say(
+                    acknowledgments[actual_intent], allow_interruptions=False
+                )
 
-        # Read pre_collected from userdata (set by escalation)
-        pre_collected = self.session.userdata.get("pre_collected")
-        self.session.userdata["pre_collected"] = None
-
-        # Create and hand off to the IntentAgent
-        intent_agent = IntentAgent(
+        return IntentAgent(
             playbook=self.playbook,
             intent=actual_intent,
             time_window=self.time_window,
@@ -144,6 +110,25 @@ class RouterAgent(Agent):
             pre_collected=pre_collected,
         )
 
+    async def _route(self, intent: str, pre_collected: dict | None = None):
+        """Escalation re-entry: resolve intent and hand off directly."""
+        intent_agent = await self._resolve_intent(intent, pre_collected)
+        self.session.update_agent(intent_agent)
+
+    @function_tool()
+    async def route_to_intent(self, context: RunContext, intent: str) -> tuple:
+        """Route the caller to the appropriate specialist. Call this once after identifying what the caller needs.
+
+        Args:
+            intent: The caller's intent (e.g. "routine_service", "emergency", "cancellation")
+        """
+        # Read pre_collected from userdata (set by escalation)
+        pre_collected = self.session.userdata.get("pre_collected")
+        self.session.userdata["pre_collected"] = None
+
+        intent_agent = await self._resolve_intent(
+            intent, pre_collected, speak_acknowledgment=True
+        )
         return intent_agent, "[routing_complete]"
 
 
