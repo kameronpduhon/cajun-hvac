@@ -203,7 +203,7 @@ You have three tools: set_intent, update_field, switch_intent.
 
 ## set_intent
 - Call ONCE after greeting to start the appropriate flow.
-- Valid intent names: {", ".join(valid_intents)}.
+- Valid intent names: {", ".join(valid_intents)}, _fallback.
 - If the caller's need does not match, use set_intent("_fallback").
 - After calling set_intent, follow the instruction returned by the tool.
 
