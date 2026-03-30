@@ -10,7 +10,7 @@ Built on **Twilio SIP + LiveKit Agents SDK** with a playbook-driven architecture
 |-------|-----------|
 | Agent framework | LiveKit Agents SDK 1.4.x (Python) |
 | Speech-to-text | Deepgram Nova-3 (multilingual) |
-| LLM | OpenAI GPT-4.1-mini |
+| LLM | Google Gemini 2.5 Flash |
 | Text-to-speech | Deepgram Aura-2 |
 | Telephony | Twilio → LiveKit SIP |
 | Package manager | uv |
@@ -21,7 +21,7 @@ A **modernized state machine** drives every call:
 
 1. Caller dials in via Twilio, which connects to a LiveKit SIP room
 2. The Python agent joins the room and greets the caller
-3. `StepExecutor` walks through playbook-defined steps using two LLM tools: `set_intent` and `update_field`
+3. `StepExecutor` walks through playbook-defined steps using the agent tools `route_to_intent`, `update_field`, and `escalate`
 4. Steps collect fields, speak scripts, or fire actions (book appointment, dispatch tech, take message)
 5. Post-call summary is sent to the backend
 
@@ -78,7 +78,7 @@ tests/
 uv sync
 
 # Copy env template and fill in your keys
-cp .env.local.example .env.local
+cp .env.example .env.local
 
 # Download ML models (first run only)
 uv run python src/agent.py download-files
@@ -95,11 +95,18 @@ Create a `.env.local` file with:
 LIVEKIT_URL=wss://your-livekit-instance.livekit.cloud
 LIVEKIT_API_KEY=...
 LIVEKIT_API_SECRET=...
-OPENAI_API_KEY=...
+VOICE_MODE=pipeline
+GEMINI_API_KEY=...
+GEMINI_REALTIME_MODEL=...
 DEEPGRAM_API_KEY=...
 COMPILED_PLAYBOOK_PATH=playbooks/cajun-hvac.compiled.json
 BACKEND_URL=http://localhost:8000
 ```
+
+`VOICE_MODE` defaults to `pipeline`.
+
+- `pipeline` uses Deepgram STT, Gemini 2.5 Flash as the text model, and Deepgram TTS.
+- `gemini_realtime` uses Gemini realtime as the conversational model while still keeping separate Deepgram STT and TTS for transcript quality and speech-output control.
 
 ### Run
 

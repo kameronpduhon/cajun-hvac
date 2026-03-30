@@ -3,6 +3,7 @@ import logging
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 # Ensure project root is on sys.path so `from src.x import y` works
 # when running as `python src/agent.py`
@@ -27,12 +28,103 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from src.playbook import load_playbook
 from src.post_call import post_summary_from_userdata
+from src.runtime_config import load_runtime_config
 from src.step_executor import StepExecutor
 from src.utils import detect_time_window
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
+
+
+def _default_userdata(time_window: str) -> dict[str, Any]:
+    return {
+        "intent": None,
+        "requested_intent": None,
+        "time_window": time_window,
+        "collected": {},
+        "transcript": "",
+        "outcome": None,
+        "pre_collected": None,
+        "escalation_requested": None,
+    }
+
+
+def _build_pipeline_session(ctx: JobContext, time_window: str) -> AgentSession:
+    return AgentSession(
+        stt=inference.STT(model="deepgram/nova-3", language="multi"),
+        llm=inference.LLM(model="google/gemini-2.5-flash"),
+        tts=inference.TTS(model="deepgram/aura-2", voice="asteria"),
+        turn_detection=MultilingualModel(),
+        vad=ctx.proc.userdata["vad"],
+        preemptive_generation=True,
+        userdata=_default_userdata(time_window),
+    )
+
+
+def _build_gemini_realtime_session(
+    ctx: JobContext, time_window: str, runtime_config
+) -> AgentSession:
+    try:
+        from google.genai import types
+        from livekit.plugins import google
+    except ImportError as exc:
+        raise RuntimeError(
+            "Gemini realtime mode requires the LiveKit Google plugin dependencies."
+        ) from exc
+
+    realtime_model = google.realtime.RealtimeModel(
+        model=runtime_config.gemini_realtime_model,
+        api_key=runtime_config.gemini_api_key,
+        modalities=[types.Modality.TEXT],
+        output_audio_transcription=types.AudioTranscriptionConfig(),
+        input_audio_transcription=types.AudioTranscriptionConfig(),
+        realtime_input_config=types.RealtimeInputConfig(
+            automatic_activity_detection=types.AutomaticActivityDetection(disabled=True)
+        ),
+    )
+
+    return AgentSession(
+        stt=inference.STT(model="deepgram/nova-3", language="multi"),
+        llm=realtime_model,
+        tts=inference.TTS(model="deepgram/aura-2", voice="asteria"),
+        turn_detection=MultilingualModel(),
+        vad=ctx.proc.userdata["vad"],
+        preemptive_generation=True,
+        userdata=_default_userdata(time_window),
+    )
+
+
+def _build_session(ctx: JobContext, time_window: str, runtime_config) -> AgentSession:
+    if runtime_config.voice_mode == "pipeline":
+        return _build_pipeline_session(ctx, time_window)
+
+    if runtime_config.voice_mode == "gemini_realtime":
+        return _build_gemini_realtime_session(ctx, time_window, runtime_config)
+
+    raise NotImplementedError(
+        f"VOICE_MODE '{runtime_config.voice_mode}' is configured, but that runtime is not implemented yet."
+    )
+
+
+def _log_runtime_config(runtime_config) -> None:
+    if runtime_config.voice_mode == "gemini_realtime":
+        logger.info(
+            "Runtime configuration: voice_mode=%s stt=%s llm=%s tts=%s",
+            runtime_config.voice_mode,
+            "deepgram/nova-3",
+            runtime_config.gemini_realtime_model,
+            "deepgram/aura-2",
+        )
+        return
+
+    logger.info(
+        "Runtime configuration: voice_mode=%s stt=%s llm=%s tts=%s",
+        runtime_config.voice_mode,
+        "deepgram/nova-3",
+        "google/gemini-2.5-flash",
+        "deepgram/aura-2",
+    )
 
 
 class RouterAgent(Agent):
@@ -248,28 +340,13 @@ server.setup_fnc = prewarm
 async def entrypoint(ctx: JobContext):
     ctx.log_context_fields = {"room": ctx.room.name}
 
+    runtime_config = load_runtime_config()
     playbook = load_playbook()
     time_window = detect_time_window(playbook)
     call_start_time = time.time()
+    _log_runtime_config(runtime_config)
 
-    session = AgentSession(
-        stt=inference.STT(model="deepgram/nova-3", language="multi"),
-        llm=inference.LLM(model="google/gemini-2.5-flash"),
-        tts=inference.TTS(model="deepgram/aura-2", voice="asteria"),
-        turn_detection=MultilingualModel(),
-        vad=ctx.proc.userdata["vad"],
-        preemptive_generation=True,
-        userdata={
-            "intent": None,
-            "requested_intent": None,
-            "time_window": time_window,
-            "collected": {},
-            "transcript": "",
-            "outcome": None,
-            "pre_collected": None,
-            "escalation_requested": None,
-        },
-    )
+    session = _build_session(ctx, time_window, runtime_config)
 
     agent = RouterAgent(playbook, time_window)
 
