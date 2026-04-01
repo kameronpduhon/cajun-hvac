@@ -31,11 +31,28 @@ PLACEHOLDER_PATTERNS = {
 
 
 def _merge_address_with_zip(original_address: str, follow_up: str) -> str:
-    """Append a ZIP from the follow-up onto the original street address."""
-    zip_code = extract_zip(follow_up.strip())
-    if zip_code:
-        return f"{original_address.strip()}, {zip_code}"
-    return follow_up.strip()
+    """Append a ZIP from the follow-up onto the original street address.
+    Only merges when the follow-up is ZIP-only (bare digits or conversational
+    like 'my zip is 70502'). If the follow-up contains a full address
+    (letters + ZIP), treat it as a complete replacement."""
+    stripped = follow_up.strip()
+    zip_code = extract_zip(stripped)
+    if not zip_code:
+        # No ZIP found at all — use follow-up as-is
+        return stripped
+    # Check if the follow-up is ZIP-only: remove the ZIP and any filler words,
+    # and see if anything substantive (letters) remains
+    without_zip = stripped.replace(zip_code, "").strip()
+    # Strip common filler words that surround a bare ZIP
+    for filler in ("my", "zip", "code", "is", "it's", "the"):
+        without_zip = without_zip.replace(filler, "").strip()
+    # Remove leftover punctuation/spaces
+    without_zip = without_zip.strip(" ,.-")
+    if without_zip and any(c.isalpha() for c in without_zip):
+        # Substantive text remains — this is a full replacement address
+        return stripped
+    # ZIP-only follow-up — append to original
+    return f"{original_address.strip()}, {zip_code}"
 
 
 def _merge_appointment_day_time(day_fragment: str, new: str) -> str:

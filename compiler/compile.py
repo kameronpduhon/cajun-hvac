@@ -123,7 +123,6 @@ def build_system_prompt(playbook: dict) -> str:
     intents = playbook["intents"]
     voice = playbook["voice"]
     emergency_qualifiers = playbook.get("emergency_qualifiers", [])
-    scripts = playbook["scripts"]
 
     # --- 1. IDENTITY & VOICE ---
     company_tts = company["name"].replace("HVAC", "H-vac")
