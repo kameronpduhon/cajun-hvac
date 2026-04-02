@@ -2,7 +2,7 @@ import logging
 import re
 
 from src.actions import ACTION_REGISTRY
-from src.utils import extract_zip
+from src.utils import extract_zip, pad_for_tts
 
 logger = logging.getLogger("agent")
 
@@ -60,9 +60,20 @@ def _merge_appointment_day_time(day_fragment: str, new: str) -> str:
     new_stripped = new.strip()
     if DAY_ONLY_PATTERN.match(new_stripped):
         return new_stripped
-    if any(d in new_stripped.lower() for d in
-           ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-            "today", "tomorrow"]):
+    if any(
+        d in new_stripped.lower()
+        for d in [
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+            "today",
+            "tomorrow",
+        ]
+    ):
         return new_stripped
     return f"{day_fragment.strip()} at {new_stripped}"
 
@@ -191,7 +202,7 @@ class StepExecutor:
     def _format_speak_sync(self, step: dict) -> str:
         """Format a speak step, merging with next collect if present. Sync version."""
         if step["mode"] == "verbatim":
-            text = step["text"]
+            text = pad_for_tts(step["text"])
             next_step = self.peek_next_step()
             if next_step and next_step["type"] == "collect":
                 self.current_step_index += 1
@@ -270,7 +281,7 @@ class StepExecutor:
 
     async def _deliver_speak(self, step: dict, session) -> str:
         if step["mode"] == "verbatim":
-            text = step["text"]
+            text = pad_for_tts(step["text"])
             next_step = self.peek_next_step()
             if next_step and next_step["type"] == "collect":
                 self.current_step_index += 1

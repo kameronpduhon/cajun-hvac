@@ -7,8 +7,20 @@ from src.utils import (
     detect_time_window,
     extract_zip,
     format_hours,
+    pad_for_tts,
     resolve_template,
 )
+
+# --- pad_for_tts ---
+
+
+def test_pad_for_tts_appends_ellipsis():
+    assert pad_for_tts("Have a great day!") == "Have a great day! ..."
+
+
+def test_pad_for_tts_strips_trailing_whitespace():
+    assert pad_for_tts("Hello there  ") == "Hello there ..."
+
 
 # --- extract_zip ---
 

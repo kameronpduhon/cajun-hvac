@@ -1,11 +1,12 @@
-from src.utils import extract_zip, resolve_template
+from src.utils import extract_zip, pad_for_tts, resolve_template
 
 
 async def check_fee_approved(executor, session) -> str:
     company = executor.company_tts_name
     if executor.collected.get("fee_approved", "").lower() in ("no", "n", "decline"):
         executor.outcome = "declined"
-        return f'Say EXACTLY: "No problem at all. Thank you for calling {company}. Have a great day." [call_ended]'
+        msg = f"No problem at all. Thank you for calling {company}. Have a great day."
+        return f'Say EXACTLY: "{pad_for_tts(msg)}" [call_ended]'
     return await executor.advance(session)
 
 
@@ -26,11 +27,12 @@ async def check_service_area(executor, session) -> str:
 
     if zip_code not in executor.playbook["service_areas"]:
         executor.outcome = "out_of_area"
-        return (
-            "Say EXACTLY: \"Unfortunately we don't service that area. "
+        msg = (
+            "Unfortunately we don't service that area. "
             "I'd recommend searching online for providers near you. "
-            f'Thank you for calling {company}." [call_ended]'
+            f"Thank you for calling {company}."
         )
+        return f'Say EXACTLY: "{pad_for_tts(msg)}" [call_ended]'
     return await executor.advance(session)
 
 
@@ -51,7 +53,7 @@ async def confirm_booking(executor, session) -> str:
         executor.playbook["scripts"]["closing_booked"], executor.collected
     )
     executor.outcome = "booked"
-    return f'Say EXACTLY: "{closing}" [call_ended]'
+    return f'Say EXACTLY: "{pad_for_tts(closing)}" [call_ended]'
 
 
 async def take_message(executor, session) -> str:
@@ -59,7 +61,7 @@ async def take_message(executor, session) -> str:
         executor.playbook["scripts"]["closing_message"], executor.collected
     )
     executor.outcome = "message_taken"
-    return f'Say EXACTLY: "{closing}" [call_ended]'
+    return f'Say EXACTLY: "{pad_for_tts(closing)}" [call_ended]'
 
 
 async def dispatch_oncall_tech(executor, session) -> str:
@@ -67,7 +69,7 @@ async def dispatch_oncall_tech(executor, session) -> str:
         executor.playbook["scripts"]["closing_dispatched"], executor.collected
     )
     executor.outcome = "dispatched"
-    return f'Say EXACTLY: "{closing}" [call_ended]'
+    return f'Say EXACTLY: "{pad_for_tts(closing)}" [call_ended]'
 
 
 async def check_emergency_confirmed(executor, session) -> str:

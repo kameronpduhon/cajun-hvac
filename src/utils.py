@@ -2,6 +2,16 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# Gemini native audio compresses/garbles the last 1-2 words of utterances.
+# A trailing ellipsis generates a brief pause in the audio stream, giving
+# preceding words room to fully articulate.
+_TTS_TRAILING_PAD = " ..."
+
+
+def pad_for_tts(text: str) -> str:
+    """Append trailing audio padding to prevent Gemini utterance-end garbling."""
+    return text.rstrip() + _TTS_TRAILING_PAD
+
 
 def extract_zip(address: str) -> str | None:
     """Extract 5-digit US zip code from an address string."""

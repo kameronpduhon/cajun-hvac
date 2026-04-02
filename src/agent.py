@@ -25,7 +25,7 @@ from livekit.plugins import google, noise_cancellation
 from src.playbook import load_playbook
 from src.post_call import post_summary_from_userdata
 from src.step_executor import StepExecutor
-from src.utils import detect_time_window
+from src.utils import detect_time_window, pad_for_tts
 
 logger = logging.getLogger("agent")
 
@@ -167,7 +167,7 @@ async def entrypoint(ctx: JobContext):
 
     # Greeting trigger — model needs explicit nudge to start speaking
     session.generate_reply(
-        instructions=f'Greet the caller by saying: "{agent.greeting}"'
+        instructions=f'Greet the caller by saying: "{pad_for_tts(agent.greeting)}"'
     )
 
     # Post-call summary on disconnect — delayed to allow transcript to settle

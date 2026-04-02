@@ -513,7 +513,7 @@ def test_set_intent_with_speak_first_step():
     executor.time_window = "office_hours"
     session = make_mock_session()
     result = executor.set_intent("test_intent", session)
-    assert 'Say EXACTLY: "Fee is $89."' in result
+    assert 'Say EXACTLY: "Fee is $89. ..."' in result
     assert "Confirm fee." in result
     assert executor.current_step_index == 1
 
@@ -779,7 +779,7 @@ def test_verbatim_speak_no_lookahead():
     executor.time_window = "office_hours"
     session = make_mock_session()
     result = executor.set_intent("test_intent", session)
-    assert 'Say EXACTLY: "Goodbye."' in result
+    assert 'Say EXACTLY: "Goodbye. ..."' in result
 
 
 def test_guided_speak_no_lookahead():
@@ -894,7 +894,7 @@ def test_warranty_speak_then_collect():
     executor.time_window = "office_hours"
     session = make_mock_session()
     result = executor.set_intent("warranty", session)
-    assert 'Say EXACTLY: "All work has a one-year warranty."' in result
+    assert 'Say EXACTLY: "All work has a one-year warranty. ..."' in result
     assert "Ask for name." in result
     assert executor.current_step_index == 1
 
@@ -949,9 +949,7 @@ async def test_appointment_time_accepts_tomorrow_morning():
     session = make_mock_session()
     executor.set_intent("routine_service", session)
     await executor.update_field("name", "Eric Tails", session)
-    await executor.update_field(
-        "appointment_time", "tomorrow morning", session
-    )
+    await executor.update_field("appointment_time", "tomorrow morning", session)
     assert executor.collected["appointment_time"] == "tomorrow morning"
 
 
@@ -993,16 +991,43 @@ PLAYBOOK_WITH_SERVICE_AREA = {
         "routine_service": {
             "label": "Routine Service",
             "steps": [
-                {"type": "collect", "field": "name", "mode": "guided", "prompt": "Ask for name."},
-                {"type": "collect", "field": "phone", "mode": "guided", "prompt": "Ask for phone."},
-                {"type": "collect", "field": "address", "mode": "guided", "prompt": "Ask for address."},
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Ask for name.",
+                },
+                {
+                    "type": "collect",
+                    "field": "phone",
+                    "mode": "guided",
+                    "prompt": "Ask for phone.",
+                },
+                {
+                    "type": "collect",
+                    "field": "address",
+                    "mode": "guided",
+                    "prompt": "Ask for address.",
+                },
                 {"type": "action", "fn": "check_service_area"},
-                {"type": "collect", "field": "appointment_time", "mode": "guided", "prompt": "Ask when they'd like to schedule."},
+                {
+                    "type": "collect",
+                    "field": "appointment_time",
+                    "mode": "guided",
+                    "prompt": "Ask when they'd like to schedule.",
+                },
             ],
         },
         "_fallback": {
             "label": "Fallback",
-            "steps": [{"type": "collect", "field": "name", "mode": "guided", "prompt": "Name?"}],
+            "steps": [
+                {
+                    "type": "collect",
+                    "field": "name",
+                    "mode": "guided",
+                    "prompt": "Name?",
+                }
+            ],
         },
     },
     "service_areas": ["70502", "70503"],
