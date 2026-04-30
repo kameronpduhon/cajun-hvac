@@ -65,8 +65,6 @@ tests/
 ├── test_step_executor.py
 ├── test_actions.py
 └── test_compiler.py
-docs/
-
 PRIOR_BUILD_REFERENCE.md     # Architecture notes from the v1 (Laravel-backed) build
 ```
 
